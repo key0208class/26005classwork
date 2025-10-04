@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>📚 雲教室工作流程管理系統 V4.0</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+        
+        @keyframes fastFloat {
+            0%, 100% { transform: translateY(0px) scale(1); }
+            50% { transform: translateY(-15px) scale(1.05); }
+        }
+        
+        .float-animation {
+            animation: float 3s ease-in-out infinite;
+        }
+        
+        .fast-float-animation {
+            animation: fastFloat 1s ease-in-out infinite;
+        }
+        
+        .student-circle {
+            transition: all 0.3s ease;
+        }
+        
+        .student-circle:hover {
+            transform: scale(1.1);
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.6);
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
+        }
+        
+        .modal-content {
+            background-color: white;
+            margin: 10% auto;
+            padding: 25px;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 600px;
+            position: relative;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        }
+        
+        .close {
+            color: #aaa;
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            font-size: 32px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        
+        .close:hover {
+            color: black;
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen">
+    <div id="page1" class="container mx-auto px-4 py-8">
+        <div class="text-center mb-8">
+            <h1 class="text-4xl font-bold text-gray-800 mb-2">📚 雲教室管理系統</h1>
+            <p class="text-gray-600">👨‍🏫 設定您的課堂工作流程</p>
+        </div>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 max-w-screen-2xl mx-auto">
+            
+            <div class="bg-white rounded-2xl shadow-xl p-6 flex flex-col">
+                <h2 class="text-2xl font-bold text-gray-800 mb-4">💾 已儲存設定</h2>
+                <div class="flex gap-2 mb-4">
+                    <input type="text" id="saveConfigName" placeholder="新設定名稱" class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500">
+                    <button onclick="saveConfiguration()" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-bold">儲存</button>
+                </div>
+                 <div class="border-t pt-4 mb-4 flex gap-2">
+                    <button onclick="document.getElementById('importFile').click()" class="flex-1 bg-cyan-600 hover:bg-cyan-700 text-white px-4 py-2 rounded-lg text-sm">📥 匯入設定檔</button>
+                    <input type="file" id="importFile" class="hidden" accept=".json" onchange="importConfigurations()">
+                    <button onclick="exportConfigurations()" class="flex-1 bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg text-sm">📤 匯出所有設定</button>
+                </div>
+                <div id="savedConfigurations" class="space-y-2 flex-grow overflow-y-auto max-h-[50vh] pr-2">
+                    </div>
+            </div>
+
+            <div class="bg-white rounded-2xl shadow-xl p-6">
+                <h2 class="text-2xl font-bold text-gray-800 mb-6">🎯 基本設定</h2>
+                <div class="space-y-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">📝 工作標題</label>
+                        <input type="text" id="workTitle" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="請輸入今日工作標題">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">👥 班級人數</label>
+                        <input type="number" id="classSize" min="1" max="50" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="請輸入班級人數">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">⏰ 截止時間</label>
+                        <div class="grid grid-cols-3 gap-3">
+                            <select id="timeOfDay" class="px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                                <option value="AM">上午</option>
+                                <option value="PM">下午</option>
+                            </select>
+                            <input type="number" id="deadlineHour" min="1" max="12" placeholder="時" class="px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                            <input type="number" id="deadlineMinute" min="0" max="59" placeholder="分" class="px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-2xl shadow-xl p-6 flex flex-col">
+                <h2 class="text-2xl font-bold text-gray-800 mb-6">📋 工作流程項目</h2>
+                <div class="flex gap-2 mb-4">
+                    <input type="text" id="newWorkItemSetup" placeholder="新增工作項目" class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                    <button type="button" onclick="addWorkItemSetup()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-bold">➕</button>
+                </div>
+                <div id="workItemsSetupList" class="space-y-1 flex-grow overflow-y-auto max-h-[60vh]"></div>
+            </div>
+            
+            <div class="bg-white rounded-2xl shadow-xl p-6 flex flex-col">
+                <h2 class="text-2xl font-bold text-gray-800 mb-6">⭐ 特殊工作註記</h2>
+                <div class="flex gap-2 mb-4">
+                    <input type="text" id="newSpecialWorkTitle" placeholder="特殊工作標題" class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
+                    <button type="button" onclick="addSpecialWorkSetup()" class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg font-bold">➕</button>
+                </div>
+                <div id="specialWorksSetupList" class="space-y-2 flex-grow overflow-y-auto max-h-[60vh]"></div>
+            </div>
+        </div>
+        <div class="text-center mt-8">
+            <div id="errorMessage" class="hidden bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg mb-4 max-w-md mx-auto">
+                ⚠️ 請檢查設定內容！
+            </div>
+            <button onclick="startWorkflow()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-8 rounded-xl transition duration-200 transform hover:scale-105 text-lg">
+                🚀 開始工作流程
+            </button>
+        </div>
+    </div>
+
+    <div id="page2" class="hidden container mx-auto px-4 py-4">
+        <div class="grid grid-cols-1 lg:grid-cols-5 gap-6">
+            <div class="lg:col-span-2 space-y-4">
+                <div class="bg-white rounded-xl shadow-lg p-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-2xl font-bold text-gray-800">⭐ 特殊工作註記</h3>
+                        <button onclick="toggleSpecialWorkEdit()" id="editSpecialWorkBtn" class="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1 rounded text-sm">✏️ 編輯</button>
+                    </div>
+                    <div id="specialWorksDisplay" class="space-y-3"></div>
+                    <div id="specialWorkEditArea" class="hidden space-y-3 border-t pt-4 mt-4">
+                        <div class="flex gap-2">
+                            <input type="text" id="editSpecialWorkTitle" placeholder="特殊工作標題" class="flex-1 px-3 py-2 border border-gray-300 rounded-lg">
+                            <button onclick="addSpecialWorkEdit()" class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg">➕</button>
+                        </div>
+                        <div id="specialWorksEditList" class="space-y-2"></div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-xl shadow-lg p-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-2xl font-bold text-gray-800">📋 工作流程項目</h3>
+                        <button onclick="toggleWorkItemEdit()" id="editWorkItemBtn" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm">✏️ 編輯</button>
+                    </div>
+                    <div class="text-xs text-gray-500 mb-3">💡 點選項目可查看未完成學生</div>
+                    <div id="workItemsList" class="space-y-1"></div>
+                    <div id="workItemEditArea" class="hidden space-y-3 border-t pt-4 mt-4">
+                        <div class="flex gap-2">
+                            <input type="text" id="editWorkItem" placeholder="新增工作項目" class="flex-1 px-3 py-2 border border-gray-300 rounded-lg">
+                            <button onclick="addWorkItemEdit()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg">➕</button>
+                        </div>
+                        <div id="workItemsEditList" class="space-y-2 max-h-40 overflow-y-auto"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="lg:col-span-3 space-y-4">
+                <div id="topDisplayArea">
+                    <div id="countdownContainer" class="text-center">
+                        <div id="countdown" class="float-animation inline-block bg-white rounded-2xl shadow-lg px-12 py-8">
+                            <div class="text-6xl font-bold text-blue-600" id="countdownText">00:00:00</div>
+                            <div class="text-lg text-gray-600 mt-2">⏰ 距離截止時間</div>
+                        </div>
+                    </div>
+                    <div id="fiveMinWarningContainer" class="hidden bg-white rounded-2xl shadow-lg p-4 lg:p-6 items-center gap-4">
+                        </div>
+                </div>
+
+                <div class="bg-white rounded-xl shadow-lg p-6">
+                    <div class="flex flex-wrap justify-between items-center mb-6 gap-y-2">
+                        <h3 class="text-lg font-bold text-gray-800">👥 學生進度管理</h3>
+                        <div class="text-sm text-gray-600">
+                            <span class="inline-block w-4 h-4 bg-red-300 rounded-full mr-1"></span> 未開始
+                            <span class="inline-block w-4 h-4 bg-orange-300 rounded-full mr-1 ml-3"></span> 剩2項
+                            <span class="inline-block w-4 h-4 bg-yellow-300 rounded-full mr-1 ml-3"></span> 剩1項
+                            <span class="inline-block w-4 h-4 bg-green-100 rounded-full mr-1 ml-3"></span> 完成
+                        </div>
+                    </div>
+                    <div id="selectedStudents" class="mb-4 p-3 bg-blue-50 rounded-lg hidden">
+                        <span class="font-medium">已選擇學生：</span>
+                        <span id="selectedStudentNumbers" class="font-bold text-blue-600"></span>
+                        <button onclick="clearSelection()" class="ml-2 text-red-600 hover:text-red-800">❌ 清除</button>
+                    </div>
+                    <div id="studentsGrid" class="grid grid-cols-8 gap-1 mb-6"></div>
+                    <div id="workItemsForStudent" class="hidden">
+                        <h4 class="font-medium text-gray-700 mb-4 text-center">🎯 點選完成的工作項目</h4>
+                        <div id="workItemsGrid" class="grid grid-cols-2 lg:grid-cols-3 gap-3"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <a href="https://class.kh.edu.tw/26005/" target="_blank" class="fixed bottom-4 left-4 bg-orange-500 text-white py-2 px-4 rounded-lg shadow-md hover:bg-orange-600 transition-colors z-10">
+            by阿翰老師
+        </a>
+    </div>
+
+    <div id="infoModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal()">&times;</span>
+            <h3 id="modalTitle" class="text-2xl font-bold mb-4 text-center"></h3>
+            <div id="modalContent" class="space-y-2"></div>
+        </div>
+    </div>
+
+    <script>
+        let workData = {
+            title: '',
+            classSize: 0,
+            deadline: null,
+            workItems: [],
+            students: {},
+            specialWorks: []
+        };
+        let selectedStudents = [];
+        let countdownInterval = null;
+        let setupWorkItems = [];
+        let setupSpecialWorks = [];
+        let oneMinAudio = null;
+        let fiveMinWarningShown = false;
+        let savedConfigurations = [];
+        const specialWorkMarkers = ['⭐', '📌', '🛡️', '❤️', '💎', '💡', '🔥', '💧', '🔔'];
+
+        function loadSavedData() {
+            const saved = localStorage.getItem('cloudClassroomSetup');
+            if (saved) {
+                const data = JSON.parse(saved);
+                document.getElementById('workTitle').value = data.title || '';
+                document.getElementById('classSize').value = data.classSize || '';
+                document.getElementById('timeOfDay').value = data.timeOfDay || 'AM';
+                document.getElementById('deadlineHour').value = data.hour || '';
+                document.getElementById('deadlineMinute').value = data.minute || '';
+                if (data.workItems) {
+                    setupWorkItems = [...data.workItems];
+                    updateWorkItemsSetupDisplay();
+                }
+                if (data.specialWorks) {
+                    setupSpecialWorks = [...data.specialWorks];
+                    updateSpecialWorksSetupDisplay();
+                }
+            }
+        }
+        function saveData() {
+            localStorage.setItem('cloudClassroomData', JSON.stringify(workData));
+        }
+        function saveSetupData() {
+            const setupData = {
+                title: document.getElementById('workTitle').value,
+                classSize: document.getElementById('classSize').value,
+                timeOfDay: document.getElementById('timeOfDay').value,
+                hour: document.getElementById('deadlineHour').value,
+                minute: document.getElementById('deadlineMinute').value,
+                workItems: [...setupWorkItems],
+                specialWorks: [...setupSpecialWorks]
+            };
+            localStorage.setItem('cloudClassroomSetup', JSON.stringify(setupData));
+        }
+        function startWorkflow() {
+            const title = document.getElementById('workTitle').value;
+            const classSize = parseInt(document.getElementById('classSize').value);
+            const timeOfDay = document.getElementById('timeOfDay').value;
+            const hour = parseInt(document.getElementById('deadlineHour').value);
+            const minute = parseInt(document.getElementById('deadlineMinute').value);
+
+            if (!title || !classSize || !hour || isNaN(minute)) {
+                document.getElementById('errorMessage').textContent = '⚠️ 請填寫所有必要資訊！';
+                document.getElementById('errorMessage').classList.remove('hidden');
+                return;
+            }
+            if (setupWorkItems.length === 0) {
+                document.getElementById('errorMessage').textContent = '⚠️ 請至少新增一個工作項目！';
+                document.getElementById('errorMessage').classList.remove('hidden');
+                return;
+            }
+
+            const now = new Date();
+            let deadlineHour = hour;
+            if (timeOfDay === 'PM' && hour !== 12) deadlineHour += 12;
+            else if (timeOfDay === 'AM' && hour === 12) deadlineHour = 0;
+            const deadline = new Date();
+            deadline.setHours(deadlineHour, minute || 0, 0, 0);
+            if (deadline <= now) deadline.setDate(deadline.getDate() + 1);
+
+            document.getElementById('errorMessage').classList.add('hidden');
+            workData.title = title;
+            workData.classSize = classSize;
+            workData.deadline = deadline;
+            workData.workItems = [...setupWorkItems];
+            workData.specialWorks = [...setupSpecialWorks];
+            workData.students = {};
+
+            for (let i = 1; i <= classSize; i++) {
+                const studentId = i.toString().padStart(2, '0');
+                workData.students[studentId] = { completedItems: [], specialWorks: [] };
+            }
+
+            workData.specialWorks.forEach((specialWork, index) => {
+                specialWork.students.forEach(studentId => {
+                    if (workData.students[studentId]) workData.students[studentId].specialWorks.push(index);
+                });
+            });
+
+            saveData();
+            document.getElementById('page1').classList.add('hidden');
+            document.getElementById('page2').classList.remove('hidden');
+            initWorkPage();
+        }
+        function initWorkPage() {
+            createStudentsGrid();
+            displaySpecialWorks();
+            updateWorkItemsDisplay();
+            startCountdown();
+        }
+        function createStudentsGrid() {
+            const grid = document.getElementById('studentsGrid');
+            grid.innerHTML = '';
+            for (let i = 1; i <= workData.classSize; i++) {
+                const studentId = i.toString().padStart(2, '0');
+                const student = workData.students[studentId];
+                const isSelected = selectedStudents.includes(studentId);
+                const circle = document.createElement('div');
+                circle.className = `student-circle w-20 h-20 rounded-full flex items-center justify-center cursor-pointer font-bold text-3xl relative transition-all duration-200 ${isSelected ? 'ring-4 ring-blue-400 transform scale-110' : ''}`;
+                circle.textContent = studentId;
+                circle.onclick = () => selectStudent(studentId);
+                updateStudentColor(circle, student);
+                if (student.specialWorks && student.specialWorks.length > 0) {
+                    const markerContainer = document.createElement('div');
+                    markerContainer.className = 'absolute -top-2 -right-2 flex space-x-1';
+                    student.specialWorks.forEach(workIndex => {
+                        const mark = document.createElement('div');
+                        mark.className = 'w-6 h-6 rounded-full flex items-center justify-center text-base bg-white shadow';
+                        mark.textContent = specialWorkMarkers[workIndex % specialWorkMarkers.length];
+                        if (workData.specialWorks[workIndex]) {
+                           mark.title = workData.specialWorks[workIndex].title;
+                        }
+                        markerContainer.appendChild(mark);
+                    });
+                    circle.appendChild(markerContainer);
+                }
+                grid.appendChild(circle);
+            }
+        }
+        function updateStudentColor(element, student) {
+            const completed = student.completedItems.length;
+            const total = workData.workItems.length;
+            const remaining = total - completed;
+            element.classList.remove('bg-red-300', 'bg-orange-300', 'bg-yellow-300', 'bg-green-100');
+            if (total > 0 && remaining === 0) element.classList.add('bg-green-100');
+            else if (remaining === 1) element.classList.add('bg-yellow-300');
+            else if (remaining === 2) element.classList.add('bg-orange-300');
+            else element.classList.add('bg-red-300');
+        }
+        function selectStudent(studentId) {
+            selectedStudents = [studentId];
+            updateSelectedStudentsDisplay();
+            createStudentsGrid();
+            if (selectedStudents.length > 0 && workData.workItems.length > 0) showWorkItemsForStudent();
+            else document.getElementById('workItemsForStudent').classList.add('hidden');
+        }
+        function updateSelectedStudentsDisplay() {
+            const selectedContainer = document.getElementById('selectedStudents');
+            if (selectedStudents.length > 0) {
+                selectedContainer.classList.remove('hidden');
+                document.getElementById('selectedStudentNumbers').textContent = selectedStudents.join(', ');
+            } else {
+                selectedContainer.classList.add('hidden');
+            }
+        }
+        function clearSelection() {
+            selectedStudents = [];
+            updateSelectedStudentsDisplay();
+            createStudentsGrid();
+            document.getElementById('workItemsForStudent').classList.add('hidden');
+        }
+        function showWorkItemsForStudent() {
+            if (selectedStudents.length === 0) return;
+            const container = document.getElementById('workItemsGrid');
+            container.innerHTML = '';
+            const studentId = selectedStudents[0];
+            const student = workData.students[studentId];
+            const colors = [
+                { bg: 'bg-red-50', border: 'border-red-200', text: 'text-red-800', hover: 'hover:bg-red-100' },
+                { bg: 'bg-blue-50', border: 'border-blue-200', text: 'text-blue-800', hover: 'hover:bg-blue-100' },
+                { bg: 'bg-green-50', border: 'border-green-200', text: 'text-green-800', hover: 'hover:bg-green-100' },
+                { bg: 'bg-yellow-50', border: 'border-yellow-200', text: 'text-yellow-800', hover: 'hover:bg-yellow-100' },
+                { bg: 'bg-purple-50', border: 'border-purple-200', text: 'text-purple-800', hover: 'hover:bg-purple-100' },
+                { bg: 'bg-pink-50', border: 'border-pink-200', text: 'text-pink-800', hover: 'hover:bg-pink-100' },
+            ];
+            workData.workItems.forEach((item, index) => {
+                const isCompleted = student.completedItems.includes(index);
+                const colorSet = colors[index % colors.length];
+                const div = document.createElement('div');
+                div.className = `p-4 rounded-lg cursor-pointer transition-all duration-200 transform hover:scale-105 border-2 text-lg ${isCompleted ? 'bg-gray-300 text-gray-600 line-through border-gray-400' : `${colorSet.bg} ${colorSet.border} ${colorSet.text} ${colorSet.hover}`}`;
+                div.textContent = item.name;
+                div.onclick = () => toggleWorkItemForStudent(index);
+                container.appendChild(div);
+            });
+            document.getElementById('workItemsForStudent').classList.remove('hidden');
+        }
+        function toggleWorkItemForStudent(itemIndex) {
+            if (selectedStudents.length === 0) return;
+            const studentId = selectedStudents[0];
+            const student = workData.students[studentId];
+            const index = student.completedItems.indexOf(itemIndex);
+            if (index !== -1) student.completedItems.splice(index, 1);
+            else student.completedItems.push(itemIndex);
+            updateWorkItemsDisplay();
+            showWorkItemsForStudent();
+            createStudentsGrid();
+            saveData();
+            if (fiveMinWarningShown) updateFiveMinIncompleteDisplay();
+        }
+        function updateWorkItemsDisplay() {
+            const container = document.getElementById('workItemsList');
+            container.innerHTML = '';
+            const colors = ['bg-red-50 border-red-200 text-red-800', 'bg-blue-50 border-blue-200 text-blue-800', 'bg-green-50 border-green-200 text-green-800', 'bg-yellow-50 border-yellow-200 text-yellow-800', 'bg-purple-50 border-purple-200 text-purple-800', 'bg-pink-50 border-pink-200 text-pink-800'];
+            workData.workItems.forEach((item, index) => {
+                const incompleteStudents = Object.keys(workData.students).filter(id => !workData.students[id].completedItems.includes(index));
+                const completedCount = workData.classSize - incompleteStudents.length;
+                const div = document.createElement('div');
+                div.className = `flex justify-between items-center p-3 rounded-lg border cursor-pointer hover:shadow-md transition-all ${colors[index % colors.length]}`;
+                div.onclick = () => showIncompleteStudents(item.name, incompleteStudents);
+                const nameSpan = document.createElement('span');
+                nameSpan.textContent = item.name;
+                nameSpan.className = 'font-medium text-2xl';
+                const countSpan = document.createElement('span');
+                countSpan.textContent = `${completedCount}/${workData.classSize}`;
+                countSpan.className = 'text-sm bg-white px-2 py-1 rounded-full border';
+                div.appendChild(nameSpan);
+                div.appendChild(countSpan);
+                container.appendChild(div);
+            });
+        }
+        // ==================== MODIFIED: Use big number balls for students ====================
+        function displaySpecialWorks() {
+            const container = document.getElementById('specialWorksDisplay');
+            container.innerHTML = '';
+            if (workData.specialWorks.length === 0) {
+                container.innerHTML = '<div class="text-center text-gray-500 py-4">無特殊工作</div>';
+                return;
+            }
+            workData.specialWorks.forEach((work, index) => {
+                const div = document.createElement('div');
+                div.className = 'p-3 bg-purple-50 rounded-lg border border-purple-200';
+                
+                const title = document.createElement('div');
+                title.className = 'font-medium text-purple-800 mb-2 text-2xl';
+                title.innerHTML = `<span class="inline-block mr-2">${specialWorkMarkers[index % specialWorkMarkers.length]}</span> ${work.title}`;
+                div.appendChild(title);
+
+                const studentsContainer = document.createElement('div');
+                studentsContainer.className = 'flex flex-wrap gap-2 mt-3';
+                
+                if (work.students.length === 0) {
+                    studentsContainer.innerHTML = '<p class="text-sm text-purple-600 text-center w-full py-2">尚未指派學生</p>';
+                } else {
+                    work.students.sort((a, b) => a - b).forEach(studentId => {
+                        const ball = document.createElement('div');
+                        ball.className = 'w-16 h-16 bg-yellow-300 text-black rounded-full flex items-center justify-center font-bold text-2xl';
+                        ball.textContent = studentId;
+                        studentsContainer.appendChild(ball);
+                    });
+                }
+                div.appendChild(studentsContainer);
+                container.appendChild(div);
+            });
+        }
+        // ===================================================================================
+        function startCountdown() {
+            countdownInterval = setInterval(updateCountdown, 1000);
+            updateCountdown();
+        }
+        function displayTimeUpMessage() {
+            if (fiveMinWarningShown) {
+                updateFiveMinIncompleteDisplay("時間截止");
+            } else {
+                const countdownEl = document.getElementById('countdown');
+                countdownEl.innerHTML = `<div class="text-6xl font-bold text-red-600">時間截止</div>`;
+                countdownEl.classList.remove('float-animation');
+            }
+        }
+        function updateCountdown() {
+            const now = new Date();
+            const timeLeft = workData.deadline - now;
+            if (timeLeft <= 0) {
+                clearInterval(countdownInterval);
+                if (oneMinAudio) { oneMinAudio.pause(); oneMinAudio.currentTime = 0; }
+                const endAudio = new Audio('https://taira-komori.net/sound_os2/electric01/clock_bell.mp3');
+                endAudio.play().catch(e => console.log('音效播放失敗:', e));
+                setTimeout(() => { endAudio.pause(); endAudio.currentTime = 0; }, 5000);
+                displayTimeUpMessage();
+                return;
+            }
+            const hours = Math.floor(timeLeft / (1000 * 60 * 60));
+            const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((timeLeft % (1000 * 60)) / 1000);
+            const timeString = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            if (document.getElementById('countdownText')) {
+              document.getElementById('countdownText').textContent = timeString;
+            }
+            if (timeLeft <= 60 * 1000 && !oneMinAudio) {
+                oneMinAudio = new Audio('https://taira-komori.net/sound_os2/electric01/clock3.mp3');
+                oneMinAudio.loop = true;
+                oneMinAudio.play().catch(e => console.log('1分鐘音效播放失敗:', e));
+            }
+            if (timeLeft <= 5 * 60 * 1000) {
+                if (!fiveMinWarningShown) {
+                    document.getElementById('countdownContainer').style.display = 'none';
+                    document.getElementById('fiveMinWarningContainer').style.display = 'flex';
+                    fiveMinWarningShown = true;
+                }
+                updateFiveMinIncompleteDisplay(timeString);
+            }
+        }
+        function updateFiveMinIncompleteDisplay(timeString) {
+            const container = document.getElementById('fiveMinWarningContainer');
+            if (!timeString) {
+                const timeLeft = workData.deadline - new Date();
+                if (timeLeft > 0) {
+                    const hours = Math.floor(timeLeft / (1000 * 60 * 60));
+                    const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
+                    const seconds = Math.floor((timeLeft % (1000 * 60)) / 1000);
+                    timeString = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+                } else {
+                    timeString = "時間截止";
+                }
+            }
+            const incompleteStudents = Object.keys(workData.students).filter(id => workData.students[id].completedItems.length < workData.workItems.length).sort();
+            let studentsGridHTML = incompleteStudents.length > 0 ? incompleteStudents.map(id => `<div class="w-10 h-10 bg-red-200 border border-red-400 rounded-full flex items-center justify-center text-base font-bold text-red-800 flex-shrink-0">${id}</div>`).join('') : `<div class="text-green-600 font-bold text-xl">🎉 全部完成！</div>`;
+            const timeDisplayHTML = timeString === "時間截止" ? `<div class="text-7xl font-bold text-red-600">時間截止</div>` : `<div class="text-7xl font-bold text-red-600">${timeString}</div><div class="text-lg text-gray-600 mt-2">⏰ 倒數計時</div>`;
+            container.innerHTML = `<div class="flex-shrink-0 ${timeString !== "時間截止" ? 'fast-float-animation' : ''}">${timeDisplayHTML}</div><div class="border-l-2 border-gray-200 pl-4 lg:pl-6 w-full"><h4 class="font-bold text-gray-700 mb-2">即時未完成列表：</h4><div class="flex flex-wrap gap-2">${studentsGridHTML}</div></div>`;
+        }
+        function addWorkItemSetup(){const input=document.getElementById("newWorkItemSetup");if(!input.value.trim())return;setupWorkItems.push({name:input.value.trim()});input.value="";updateWorkItemsSetupDisplay();saveSetupData()}function updateWorkItemsSetupDisplay(){const container=document.getElementById("workItemsSetupList");container.innerHTML="";setupWorkItems.forEach((item,index)=>{container.innerHTML+=`<div class="flex justify-between items-center p-2 bg-blue-50 rounded-lg"><span class="text-sm">${item.name}</span><button onclick="removeWorkItemSetup(${index})" class="text-red-600 hover:text-red-800">❌</button></div>`})}function removeWorkItemSetup(index){setupWorkItems.splice(index,1);updateWorkItemsSetupDisplay();saveSetupData()}function addSpecialWorkSetup(){const input=document.getElementById("newSpecialWorkTitle");if(!input.value.trim())return;setupSpecialWorks.push({title:input.value.trim(),students:[]});input.value="";updateSpecialWorksSetupDisplay();saveSetupData()}function updateSpecialWorksSetupDisplay(){const container=document.getElementById("specialWorksSetupList");container.innerHTML="";setupSpecialWorks.forEach((work,index)=>{const div=document.createElement("div");div.className="p-3 bg-purple-50 rounded-lg border border-purple-200";div.innerHTML=`<div class="flex justify-between items-center mb-2"><span class="font-medium text-purple-800">${work.title}</span><button onclick="removeSpecialWorkSetup(${index})" class="text-red-600 hover:text-red-800">❌</button></div><input type="text" placeholder="輸入學生編號 (例: 01,03,05)" onchange="updateSpecialWorkStudents(${index}, this.value)" value="${work.students.join(",")}" class="w-full px-2 py-1 text-sm border border-purple-300 rounded">`;container.appendChild(div)})}function updateSpecialWorkStudents(index,value){const students=value.split(",").map(s=>s.trim().padStart(2,"0")).filter(s=>s&&s!=="00");setupSpecialWorks[index].students=students;saveSetupData()}function removeSpecialWorkSetup(index){setupSpecialWorks.splice(index,1);updateSpecialWorksSetupDisplay();saveSetupData()}function saveConfiguration(){const name=document.getElementById("saveConfigName").value.trim();if(!name){alert("⚠️ 請輸入設定名稱！");return}const config={name:name,title:document.getElementById("workTitle").value,classSize:document.getElementById("classSize").value,timeOfDay:document.getElementById("timeOfDay").value,hour:document.getElementById("deadlineHour").value,minute:document.getElementById("deadlineMinute").value,workItems:[...setupWorkItems],specialWorks:[...setupSpecialWorks],timestamp:(new Date).toLocaleString()};savedConfigurations.push(config);localStorage.setItem("savedConfigurations",JSON.stringify(savedConfigurations));document.getElementById("saveConfigName").value="";updateSavedConfigurationsDisplay();alert(`✅ 設定「${name}」已儲存！`)}function loadConfiguration(index){const config=savedConfigurations[index];if(!config)return;document.getElementById("workTitle").value=config.title||"";document.getElementById("classSize").value=config.classSize||"";document.getElementById("timeOfDay").value=config.timeOfDay||"AM";document.getElementById("deadlineHour").value=config.hour||"";document.getElementById("deadlineMinute").value=config.minute||"";setupWorkItems=[...(config.workItems||[])];setupSpecialWorks=[...(config.specialWorks||[])];updateWorkItemsSetupDisplay();updateSpecialWorksSetupDisplay();alert(`✅ 已載入設定「${config.name}」！`)}function deleteConfiguration(index){const configName=savedConfigurations[index].name;if(confirm(`確定要刪除設定檔「${configName}」嗎？此操作無法復原。`)){savedConfigurations.splice(index,1);localStorage.setItem("savedConfigurations",JSON.stringify(savedConfigurations));updateSavedConfigurationsDisplay()}}function updateSavedConfigurationsDisplay(){const container=document.getElementById("savedConfigurations");container.innerHTML="";if(savedConfigurations.length===0){container.innerHTML='<div class="text-center text-gray-500 py-2">尚無儲存的設定</div>';return}savedConfigurations.forEach((config,index)=>{container.innerHTML+=`<div class="p-3 bg-green-50 rounded-lg border border-green-200 mb-2"><div class="mb-2"><div class="font-medium text-green-800">${config.name}</div><div class="text-xs text-green-600">${config.timestamp}</div></div><div class="flex gap-2 items-center"><button onclick="loadConfiguration(${index})" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm">載入</button><button onclick="deleteConfiguration(${index})" class="w-8 h-8 bg-red-500 hover:bg-red-600 text-white rounded text-sm flex items-center justify-center">🗑️</button></div></div>`})}function toggleSpecialWorkEdit(){const editArea=document.getElementById("specialWorkEditArea"),btn=document.getElementById("editSpecialWorkBtn");if(editArea.classList.toggle("hidden"))btn.textContent="✏️ 編輯";else{btn.textContent="✅ 完成";updateSpecialWorksEditDisplay()}}
+        function toggleWorkItemEdit() {const editArea=document.getElementById("workItemEditArea"),btn=document.getElementById("editWorkItemBtn");if(editArea.classList.toggle("hidden"))btn.textContent="✏️ 編輯";else{btn.textContent="✅ 完成";updateWorkItemsEditDisplay()}}
+        function updateSpecialWorksEditDisplay(){const container=document.getElementById("specialWorksEditList");container.innerHTML="";workData.specialWorks.forEach((work,index)=>{const div=document.createElement("div");div.className="p-3 bg-purple-50 rounded-lg border border-purple-200";div.innerHTML=`<div class="flex justify-between items-center mb-2"><span class="font-medium text-purple-800">${work.title}</span><button onclick="removeSpecialWorkEdit(${index})" class="text-red-600 hover:text-red-800">❌</button></div><input type="text" placeholder="輸入學生編號 (例: 01,03,05)" onchange="updateSpecialWorkStudentsEdit(${index}, this.value)" value="${work.students.join(",")}" class="w-full px-2 py-1 text-sm border border-purple-300 rounded">`;container.appendChild(div)})}
+        function updateSpecialWorkStudentsEdit(index,value){const students=value.split(",").map(s=>s.trim().padStart(2,"0")).filter(s=>s&&s!=="00");workData.specialWorks[index].students=students;Object.values(workData.students).forEach(s=>s.specialWorks=[]);workData.specialWorks.forEach((sw,i)=>{sw.students.forEach(id=>{if(workData.students[id])workData.students[id].specialWorks.push(i)})});displaySpecialWorks();createStudentsGrid();saveData()}
+        // ==================== BUG FIX: Correctly remove special work item ====================
+        function removeSpecialWorkEdit(index) {
+            workData.specialWorks.splice(index, 1);
+
+            // Rebuild all student special work markers since indices have shifted
+            Object.values(workData.students).forEach(student => student.specialWorks = []);
+            workData.specialWorks.forEach((specialWork, newIndex) => {
+                specialWork.students.forEach(studentId => {
+                    if (workData.students[studentId]) {
+                        workData.students[studentId].specialWorks.push(newIndex);
+                    }
+                });
+            });
+            
+            // Refresh all displays
+            updateSpecialWorksEditDisplay();
+            displaySpecialWorks();
+            createStudentsGrid();
+            saveData();
+        }
+        // =====================================================================================
+        function addSpecialWorkEdit(){const input=document.getElementById("editSpecialWorkTitle");if(!input.value.trim())return;workData.specialWorks.push({title:input.value.trim(),students:[]});input.value="";updateSpecialWorksEditDisplay();displaySpecialWorks();saveData()}
+        function updateWorkItemsEditDisplay(){const container=document.getElementById("workItemsEditList");container.innerHTML="";workData.workItems.forEach((item,index)=>{const div=document.createElement("div");div.className="flex justify-between items-center p-2 bg-blue-50 rounded-lg";div.innerHTML=`<span class="text-sm">${item.name}</span><button onclick="removeWorkItemEdit(${index})" class="text-red-600 hover:text-red-800">❌</button>`;container.appendChild(div)})}
+        function removeWorkItemEdit(index){if(workData.workItems.length<=1){alert("至少需要保留一個工作項目！");return}workData.workItems.splice(index,1);Object.values(workData.students).forEach(student=>{student.completedItems=student.completedItems.filter(itemIndex=>itemIndex!==index).map(itemIndex=>(itemIndex>index?itemIndex-1:itemIndex))});updateWorkItemsDisplay();updateWorkItemsEditDisplay();createStudentsGrid();if(selectedStudents.length>0)showWorkItemsForStudent();if(fiveMinWarningShown)updateFiveMinIncompleteDisplay();saveData()}
+        function addWorkItemEdit(){const input=document.getElementById("editWorkItem");if(!input.value.trim())return;workData.workItems.push({name:input.value.trim()});input.value="";updateWorkItemsDisplay();updateWorkItemsEditDisplay();if(selectedStudents.length>0)showWorkItemsForStudent();if(fiveMinWarningShown)updateFiveMinIncompleteDisplay();saveData()}
+        function showModalWithIncompleteStudents(titleText,studentList){const modal=document.getElementById("infoModal"),title=document.getElementById("modalTitle"),content=document.getElementById("modalContent");title.textContent=titleText;content.innerHTML="";if(studentList.length===0)content.innerHTML='<div class="text-center text-green-600 font-medium py-4">🎉 全部學生都已完成！</div>';else{const grid=document.createElement("div");grid.className="grid grid-cols-8 gap-3 justify-center max-w-lg mx-auto";studentList.sort().forEach(studentId=>{grid.innerHTML+=`<div class="w-12 h-12 bg-red-100 border border-red-300 rounded-full flex items-center justify-center text-lg font-bold text-red-700">${studentId}</div>`});content.appendChild(grid);content.innerHTML+=`<div class="mt-4 text-center text-gray-600">共 ${studentList.length} 位學生尚未完成</div>`}modal.style.display="block"}function showIncompleteStudents(itemName,incompleteStudents){showModalWithIncompleteStudents(`📋 ${itemName} - 未完成學生`,incompleteStudents)}function closeModal(){document.getElementById("infoModal").style.display="none"}
+        // ==================== NEW: Import/Export Functions ====================
+        function exportConfigurations() {
+            if (savedConfigurations.length === 0) {
+                alert('⚠️ 沒有可匯出的設定！');
+                return;
+            }
+            const dataStr = JSON.stringify(savedConfigurations, null, 2);
+            const dataBlob = new Blob([dataStr], {type: "application/json"});
+            const url = URL.createObjectURL(dataBlob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `classroom_configs_${new Date().toISOString().slice(0,10)}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        function importConfigurations() {
+            const fileInput = document.getElementById('importFile');
+            const file = fileInput.files[0];
+            if (!file) {
+                return;
+            }
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                try {
+                    const imported = JSON.parse(event.target.result);
+                    if (!Array.isArray(imported)) {
+                        throw new Error('格式錯誤，檔案必須包含設定陣列。');
+                    }
+                    // Simple merge: add new ones, ignore existing names
+                    const existingNames = new Set(savedConfigurations.map(c => c.name));
+                    let addedCount = 0;
+                    imported.forEach(config => {
+                        if (config.name && !existingNames.has(config.name)) {
+                            savedConfigurations.push(config);
+                            addedCount++;
+                        }
+                    });
+                    localStorage.setItem('savedConfigurations', JSON.stringify(savedConfigurations));
+                    updateSavedConfigurationsDisplay();
+                    alert(`✅ 匯入成功！新增了 ${addedCount} 個設定。`);
+                } catch (error) {
+                    alert(`❌ 匯入失敗：${error.message}`);
+                } finally {
+                    // Reset file input to allow re-uploading the same file
+                    fileInput.value = '';
+                }
+            };
+            reader.onerror = function() {
+                alert('❌ 讀取檔案時發生錯誤。');
+                fileInput.value = '';
+            };
+            reader.readAsText(file);
+        }
+        // ======================================================================
+        window.onclick=function(event){const modal=document.getElementById("infoModal");if(event.target===modal)modal.style.display="none"};
+        window.onload=function(){loadSavedData();const saved=localStorage.getItem("savedConfigurations");if(saved){savedConfigurations=JSON.parse(saved);updateSavedConfigurationsDisplay()}};
+    </script>
+</body>
+</html>
