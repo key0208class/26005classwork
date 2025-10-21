@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>📚 雲教室工作流程管理系統 V4.0</title>
+    <title>📚 雲教室工作流程管理系統 V5.2.0</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @keyframes float {
@@ -130,9 +130,15 @@
             </div>
             
             <div class="bg-white rounded-2xl shadow-xl p-6 flex flex-col">
-                <h2 class="text-2xl font-bold text-gray-800 mb-6">⭐ 特殊工作註記</h2>
+                <h2 class="text-2xl font-bold text-gray-800 mb-6">⭐ 額外任務</h2>
+                
+                <div class="mb-4">
+                    <button onclick="document.getElementById('importCorrectionFile').click()" class="w-full bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg font-bold">📥 匯入訂正名單</button>
+                    <input type="file" id="importCorrectionFile" class="hidden" accept=".json" onchange="importCorrectionList(event)">
+                </div>
+                
                 <div class="flex gap-2 mb-4">
-                    <input type="text" id="newSpecialWorkTitle" placeholder="特殊工作標題" class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
+                    <input type="text" id="newSpecialWorkTitle" placeholder="額外任務標題" class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
                     <button type="button" onclick="addSpecialWorkSetup()" class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg font-bold">➕</button>
                 </div>
                 <div id="specialWorksSetupList" class="space-y-2 flex-grow overflow-y-auto max-h-[60vh]"></div>
@@ -153,13 +159,13 @@
             <div class="lg:col-span-2 space-y-4">
                 <div class="bg-white rounded-xl shadow-lg p-6">
                     <div class="flex justify-between items-center mb-4">
-                        <h3 class="text-2xl font-bold text-gray-800">⭐ 特殊工作註記</h3>
+                        <h3 class="text-2xl font-bold text-gray-800">⭐ 額外任務</h3>
                         <button onclick="toggleSpecialWorkEdit()" id="editSpecialWorkBtn" class="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1 rounded text-sm">✏️ 編輯</button>
                     </div>
                     <div id="specialWorksDisplay" class="space-y-3"></div>
                     <div id="specialWorkEditArea" class="hidden space-y-3 border-t pt-4 mt-4">
                         <div class="flex gap-2">
-                            <input type="text" id="editSpecialWorkTitle" placeholder="特殊工作標題" class="flex-1 px-3 py-2 border border-gray-300 rounded-lg">
+                            <input type="text" id="editSpecialWorkTitle" placeholder="額外任務標題" class="flex-1 px-3 py-2 border border-gray-300 rounded-lg">
                             <button onclick="addSpecialWorkEdit()" class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg">➕</button>
                         </div>
                         <div id="specialWorksEditList" class="space-y-2"></div>
@@ -319,12 +325,22 @@
 
             for (let i = 1; i <= classSize; i++) {
                 const studentId = i.toString().padStart(2, '0');
-                workData.students[studentId] = { completedItems: [], specialWorks: [] };
+                workData.students[studentId] = { 
+                    completedItems: [], 
+                    specialWorks: [],
+                    extraTasks: [] 
+                };
             }
 
             workData.specialWorks.forEach((specialWork, index) => {
                 specialWork.students.forEach(studentId => {
-                    if (workData.students[studentId]) workData.students[studentId].specialWorks.push(index);
+                    if (workData.students[studentId]) {
+                        workData.students[studentId].specialWorks.push(index);
+                        workData.students[studentId].extraTasks.push({
+                            title: specialWork.title,
+                            completed: false
+                        });
+                    }
                 });
             });
 
@@ -368,22 +384,36 @@
                 grid.appendChild(circle);
             }
         }
+        
         function updateStudentColor(element, student) {
-            const completed = student.completedItems.length;
-            const total = workData.workItems.length;
-            const remaining = total - completed;
+            const mainCompleted = student.completedItems.length;
+            const mainTotal = workData.workItems.length;
+            
+            const extraCompleted = student.extraTasks.filter(t => t.completed).length;
+            const extraTotal = student.extraTasks.length;
+
+            const totalCompleted = mainCompleted + extraCompleted;
+            const totalTasks = mainTotal + extraTotal;
+            
+            const remaining = totalTasks - totalCompleted;
+
             element.classList.remove('bg-red-300', 'bg-orange-300', 'bg-yellow-300', 'bg-green-100');
-            if (total > 0 && remaining === 0) element.classList.add('bg-green-100');
+            
+            if (totalTasks > 0 && remaining === 0) element.classList.add('bg-green-100');
             else if (remaining === 1) element.classList.add('bg-yellow-300');
             else if (remaining === 2) element.classList.add('bg-orange-300');
             else element.classList.add('bg-red-300');
         }
+
         function selectStudent(studentId) {
             selectedStudents = [studentId];
             updateSelectedStudentsDisplay();
             createStudentsGrid();
-            if (selectedStudents.length > 0 && workData.workItems.length > 0) showWorkItemsForStudent();
-            else document.getElementById('workItemsForStudent').classList.add('hidden');
+            if (selectedStudents.length > 0 && (workData.workItems.length > 0 || workData.students[studentId].extraTasks.length > 0)) {
+                showWorkItemsForStudent();
+            } else {
+                document.getElementById('workItemsForStudent').classList.add('hidden');
+            }
         }
         function updateSelectedStudentsDisplay() {
             const selectedContainer = document.getElementById('selectedStudents');
@@ -400,12 +430,14 @@
             createStudentsGrid();
             document.getElementById('workItemsForStudent').classList.add('hidden');
         }
+        
         function showWorkItemsForStudent() {
             if (selectedStudents.length === 0) return;
             const container = document.getElementById('workItemsGrid');
             container.innerHTML = '';
             const studentId = selectedStudents[0];
             const student = workData.students[studentId];
+
             const colors = [
                 { bg: 'bg-red-50', border: 'border-red-200', text: 'text-red-800', hover: 'hover:bg-red-100' },
                 { bg: 'bg-blue-50', border: 'border-blue-200', text: 'text-blue-800', hover: 'hover:bg-blue-100' },
@@ -423,8 +455,26 @@
                 div.onclick = () => toggleWorkItemForStudent(index);
                 container.appendChild(div);
             });
+
+            // ==================== [BUG修復] 修正此處，避免破壞事件監聽 ====================
+            if (workData.workItems.length > 0 && student.extraTasks.length > 0) {
+                const separator = document.createElement('div');
+                separator.className = 'col-span-2 lg:col-span-3 border-t my-2';
+                container.appendChild(separator);
+            }
+
+            student.extraTasks.forEach((task, index) => {
+                const isCompleted = task.completed;
+                const div = document.createElement('div');
+                div.className = `p-4 rounded-lg cursor-pointer transition-all duration-200 transform hover:scale-105 border-2 text-lg ${isCompleted ? 'bg-gray-300 text-gray-600 line-through border-gray-400' : 'bg-purple-50 border-purple-200 text-purple-800 hover:bg-purple-100'}`;
+                div.textContent = `⭐ ${task.title}`;
+                div.onclick = () => toggleExtraTaskForStudent(index);
+                container.appendChild(div);
+            });
+
             document.getElementById('workItemsForStudent').classList.remove('hidden');
         }
+
         function toggleWorkItemForStudent(itemIndex) {
             if (selectedStudents.length === 0) return;
             const studentId = selectedStudents[0];
@@ -438,6 +488,21 @@
             saveData();
             if (fiveMinWarningShown) updateFiveMinIncompleteDisplay();
         }
+        
+        function toggleExtraTaskForStudent(taskIndex) {
+            if (selectedStudents.length === 0) return;
+            const studentId = selectedStudents[0];
+            const student = workData.students[studentId];
+            if (student.extraTasks[taskIndex]) {
+                student.extraTasks[taskIndex].completed = !student.extraTasks[taskIndex].completed;
+            }
+            
+            showWorkItemsForStudent();
+            createStudentsGrid();
+            saveData();
+            if (fiveMinWarningShown) updateFiveMinIncompleteDisplay();
+        }
+
         function updateWorkItemsDisplay() {
             const container = document.getElementById('workItemsList');
             container.innerHTML = '';
@@ -459,25 +524,39 @@
                 container.appendChild(div);
             });
         }
-        // ==================== MODIFIED: Use big number balls for students ====================
+        
+        // ==================== [功能] 修改處: 加入摺疊功能 ====================
         function displaySpecialWorks() {
             const container = document.getElementById('specialWorksDisplay');
             container.innerHTML = '';
             if (workData.specialWorks.length === 0) {
-                container.innerHTML = '<div class="text-center text-gray-500 py-4">無特殊工作</div>';
+                container.innerHTML = '<div class="text-center text-gray-500 py-4">無額外任務</div>';
                 return;
             }
             workData.specialWorks.forEach((work, index) => {
                 const div = document.createElement('div');
                 div.className = 'p-3 bg-purple-50 rounded-lg border border-purple-200';
+
+                const titleContainer = document.createElement('div');
+                titleContainer.className = 'flex justify-between items-center cursor-pointer';
+                titleContainer.onclick = () => toggleSpecialWorkCollapse(index);
                 
-                const title = document.createElement('div');
-                title.className = 'font-medium text-purple-800 mb-2 text-2xl';
-                title.innerHTML = `<span class="inline-block mr-2">${specialWorkMarkers[index % specialWorkMarkers.length]}</span> ${work.title}`;
-                div.appendChild(title);
+                const titleText = document.createElement('div');
+                titleText.className = 'font-medium text-purple-800 text-2xl flex-grow';
+                titleText.innerHTML = `<span class="inline-block mr-2">${specialWorkMarkers[index % specialWorkMarkers.length]}</span> ${work.title}`;
+                
+                const toggleIcon = document.createElement('span');
+                toggleIcon.id = `special-work-toggle-icon-${index}`;
+                toggleIcon.className = 'text-purple-600 transition-transform duration-300 text-xl font-bold w-6 text-center';
+                toggleIcon.textContent = '▶'; // 預設摺疊
+                
+                titleContainer.appendChild(titleText);
+                titleContainer.appendChild(toggleIcon);
+                div.appendChild(titleContainer);
 
                 const studentsContainer = document.createElement('div');
-                studentsContainer.className = 'flex flex-wrap gap-2 mt-3';
+                studentsContainer.id = `special-work-students-${index}`;
+                studentsContainer.className = 'flex flex-wrap gap-2 mt-3 hidden'; // 預設隱藏
                 
                 if (work.students.length === 0) {
                     studentsContainer.innerHTML = '<p class="text-sm text-purple-600 text-center w-full py-2">尚未指派學生</p>';
@@ -493,7 +572,17 @@
                 container.appendChild(div);
             });
         }
-        // ===================================================================================
+
+        // ==================== [功能] 新增處: 摺疊功能的邏輯 ====================
+        function toggleSpecialWorkCollapse(index) {
+            const studentsContainer = document.getElementById(`special-work-students-${index}`);
+            const toggleIcon = document.getElementById(`special-work-toggle-icon-${index}`);
+            if (studentsContainer && toggleIcon) {
+                const isHidden = studentsContainer.classList.toggle('hidden');
+                toggleIcon.textContent = isHidden ? '▶' : '▼';
+            }
+        }
+
         function startCountdown() {
             countdownInterval = setInterval(updateCountdown, 1000);
             updateCountdown();
@@ -540,6 +629,14 @@
                 updateFiveMinIncompleteDisplay(timeString);
             }
         }
+        
+        function isStudentFullyCompleted(student) {
+            if (!student) return false;
+            const mainTasksDone = student.completedItems.length === workData.workItems.length;
+            const extraTasksDone = student.extraTasks.every(task => task.completed);
+            return mainTasksDone && extraTasksDone;
+        }
+
         function updateFiveMinIncompleteDisplay(timeString) {
             const container = document.getElementById('fiveMinWarningContainer');
             if (!timeString) {
@@ -553,42 +650,110 @@
                     timeString = "時間截止";
                 }
             }
-            const incompleteStudents = Object.keys(workData.students).filter(id => workData.students[id].completedItems.length < workData.workItems.length).sort();
+            const incompleteStudents = Object.keys(workData.students).filter(id => !isStudentFullyCompleted(workData.students[id])).sort();
             let studentsGridHTML = incompleteStudents.length > 0 ? incompleteStudents.map(id => `<div class="w-10 h-10 bg-red-200 border border-red-400 rounded-full flex items-center justify-center text-base font-bold text-red-800 flex-shrink-0">${id}</div>`).join('') : `<div class="text-green-600 font-bold text-xl">🎉 全部完成！</div>`;
             const timeDisplayHTML = timeString === "時間截止" ? `<div class="text-7xl font-bold text-red-600">時間截止</div>` : `<div class="text-7xl font-bold text-red-600">${timeString}</div><div class="text-lg text-gray-600 mt-2">⏰ 倒數計時</div>`;
             container.innerHTML = `<div class="flex-shrink-0 ${timeString !== "時間截止" ? 'fast-float-animation' : ''}">${timeDisplayHTML}</div><div class="border-l-2 border-gray-200 pl-4 lg:pl-6 w-full"><h4 class="font-bold text-gray-700 mb-2">即時未完成列表：</h4><div class="flex flex-wrap gap-2">${studentsGridHTML}</div></div>`;
         }
+
         function addWorkItemSetup(){const input=document.getElementById("newWorkItemSetup");if(!input.value.trim())return;setupWorkItems.push({name:input.value.trim()});input.value="";updateWorkItemsSetupDisplay();saveSetupData()}function updateWorkItemsSetupDisplay(){const container=document.getElementById("workItemsSetupList");container.innerHTML="";setupWorkItems.forEach((item,index)=>{container.innerHTML+=`<div class="flex justify-between items-center p-2 bg-blue-50 rounded-lg"><span class="text-sm">${item.name}</span><button onclick="removeWorkItemSetup(${index})" class="text-red-600 hover:text-red-800">❌</button></div>`})}function removeWorkItemSetup(index){setupWorkItems.splice(index,1);updateWorkItemsSetupDisplay();saveSetupData()}function addSpecialWorkSetup(){const input=document.getElementById("newSpecialWorkTitle");if(!input.value.trim())return;setupSpecialWorks.push({title:input.value.trim(),students:[]});input.value="";updateSpecialWorksSetupDisplay();saveSetupData()}function updateSpecialWorksSetupDisplay(){const container=document.getElementById("specialWorksSetupList");container.innerHTML="";setupSpecialWorks.forEach((work,index)=>{const div=document.createElement("div");div.className="p-3 bg-purple-50 rounded-lg border border-purple-200";div.innerHTML=`<div class="flex justify-between items-center mb-2"><span class="font-medium text-purple-800">${work.title}</span><button onclick="removeSpecialWorkSetup(${index})" class="text-red-600 hover:text-red-800">❌</button></div><input type="text" placeholder="輸入學生編號 (例: 01,03,05)" onchange="updateSpecialWorkStudents(${index}, this.value)" value="${work.students.join(",")}" class="w-full px-2 py-1 text-sm border border-purple-300 rounded">`;container.appendChild(div)})}function updateSpecialWorkStudents(index,value){const students=value.split(",").map(s=>s.trim().padStart(2,"0")).filter(s=>s&&s!=="00");setupSpecialWorks[index].students=students;saveSetupData()}function removeSpecialWorkSetup(index){setupSpecialWorks.splice(index,1);updateSpecialWorksSetupDisplay();saveSetupData()}function saveConfiguration(){const name=document.getElementById("saveConfigName").value.trim();if(!name){alert("⚠️ 請輸入設定名稱！");return}const config={name:name,title:document.getElementById("workTitle").value,classSize:document.getElementById("classSize").value,timeOfDay:document.getElementById("timeOfDay").value,hour:document.getElementById("deadlineHour").value,minute:document.getElementById("deadlineMinute").value,workItems:[...setupWorkItems],specialWorks:[...setupSpecialWorks],timestamp:(new Date).toLocaleString()};savedConfigurations.push(config);localStorage.setItem("savedConfigurations",JSON.stringify(savedConfigurations));document.getElementById("saveConfigName").value="";updateSavedConfigurationsDisplay();alert(`✅ 設定「${name}」已儲存！`)}function loadConfiguration(index){const config=savedConfigurations[index];if(!config)return;document.getElementById("workTitle").value=config.title||"";document.getElementById("classSize").value=config.classSize||"";document.getElementById("timeOfDay").value=config.timeOfDay||"AM";document.getElementById("deadlineHour").value=config.hour||"";document.getElementById("deadlineMinute").value=config.minute||"";setupWorkItems=[...(config.workItems||[])];setupSpecialWorks=[...(config.specialWorks||[])];updateWorkItemsSetupDisplay();updateSpecialWorksSetupDisplay();alert(`✅ 已載入設定「${config.name}」！`)}function deleteConfiguration(index){const configName=savedConfigurations[index].name;if(confirm(`確定要刪除設定檔「${configName}」嗎？此操作無法復原。`)){savedConfigurations.splice(index,1);localStorage.setItem("savedConfigurations",JSON.stringify(savedConfigurations));updateSavedConfigurationsDisplay()}}function updateSavedConfigurationsDisplay(){const container=document.getElementById("savedConfigurations");container.innerHTML="";if(savedConfigurations.length===0){container.innerHTML='<div class="text-center text-gray-500 py-2">尚無儲存的設定</div>';return}savedConfigurations.forEach((config,index)=>{container.innerHTML+=`<div class="p-3 bg-green-50 rounded-lg border border-green-200 mb-2"><div class="mb-2"><div class="font-medium text-green-800">${config.name}</div><div class="text-xs text-green-600">${config.timestamp}</div></div><div class="flex gap-2 items-center"><button onclick="loadConfiguration(${index})" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm">載入</button><button onclick="deleteConfiguration(${index})" class="w-8 h-8 bg-red-500 hover:bg-red-600 text-white rounded text-sm flex items-center justify-center">🗑️</button></div></div>`})}function toggleSpecialWorkEdit(){const editArea=document.getElementById("specialWorkEditArea"),btn=document.getElementById("editSpecialWorkBtn");if(editArea.classList.toggle("hidden"))btn.textContent="✏️ 編輯";else{btn.textContent="✅ 完成";updateSpecialWorksEditDisplay()}}
         function toggleWorkItemEdit() {const editArea=document.getElementById("workItemEditArea"),btn=document.getElementById("editWorkItemBtn");if(editArea.classList.toggle("hidden"))btn.textContent="✏️ 編輯";else{btn.textContent="✅ 完成";updateWorkItemsEditDisplay()}}
-        function updateSpecialWorksEditDisplay(){const container=document.getElementById("specialWorksEditList");container.innerHTML="";workData.specialWorks.forEach((work,index)=>{const div=document.createElement("div");div.className="p-3 bg-purple-50 rounded-lg border border-purple-200";div.innerHTML=`<div class="flex justify-between items-center mb-2"><span class="font-medium text-purple-800">${work.title}</span><button onclick="removeSpecialWorkEdit(${index})" class="text-red-600 hover:text-red-800">❌</button></div><input type="text" placeholder="輸入學生編號 (例: 01,03,05)" onchange="updateSpecialWorkStudentsEdit(${index}, this.value)" value="${work.students.join(",")}" class="w-full px-2 py-1 text-sm border border-purple-300 rounded">`;container.appendChild(div)})}
-        function updateSpecialWorkStudentsEdit(index,value){const students=value.split(",").map(s=>s.trim().padStart(2,"0")).filter(s=>s&&s!=="00");workData.specialWorks[index].students=students;Object.values(workData.students).forEach(s=>s.specialWorks=[]);workData.specialWorks.forEach((sw,i)=>{sw.students.forEach(id=>{if(workData.students[id])workData.students[id].specialWorks.push(i)})});displaySpecialWorks();createStudentsGrid();saveData()}
-        // ==================== BUG FIX: Correctly remove special work item ====================
-        function removeSpecialWorkEdit(index) {
-            workData.specialWorks.splice(index, 1);
+        
+        function rebuildStudentExtraTasks() {
+            const oldTasksByStudent = {};
+            Object.keys(workData.students).forEach(studentId => {
+                oldTasksByStudent[studentId] = workData.students[studentId].extraTasks.reduce((acc, task) => {
+                    acc[task.title] = task.completed;
+                    return acc;
+                }, {});
+            });
 
-            // Rebuild all student special work markers since indices have shifted
-            Object.values(workData.students).forEach(student => student.specialWorks = []);
-            workData.specialWorks.forEach((specialWork, newIndex) => {
+            Object.values(workData.students).forEach(student => {
+                student.specialWorks = [];
+                student.extraTasks = [];
+            });
+
+            workData.specialWorks.forEach((specialWork, index) => {
                 specialWork.students.forEach(studentId => {
-                    if (workData.students[studentId]) {
-                        workData.students[studentId].specialWorks.push(newIndex);
+                    const student = workData.students[studentId];
+                    if (student) {
+                        student.specialWorks.push(index);
+                        
+                        const wasCompleted = oldTasksByStudent[studentId] ? (oldTasksByStudent[studentId][specialWork.title] || false) : false;
+                        
+                        student.extraTasks.push({
+                            title: specialWork.title,
+                            completed: wasCompleted
+                        });
                     }
                 });
             });
+        }
+
+        function updateSpecialWorksEditDisplay(){
+            const container=document.getElementById("specialWorksEditList");
+            container.innerHTML="";
+            workData.specialWorks.forEach((work,index)=>{
+                const div=document.createElement("div");
+                div.className="p-3 bg-purple-50 rounded-lg border border-purple-200";
+                div.innerHTML=`<div class="flex justify-between items-center mb-2"><span class="font-medium text-purple-800">${work.title}</span><button onclick="removeSpecialWorkEdit(${index})" class="text-red-600 hover:text-red-800">❌</button></div><input type="text" placeholder="輸入學生編號 (例: 01,03,05)" onchange="updateSpecialWorkStudentsEdit(${index}, this.value)" value="${work.students.join(",")}" class="w-full px-2 py-1 text-sm border border-purple-300 rounded">`;
+                container.appendChild(div)
+            })
+        }
+
+        function updateSpecialWorkStudentsEdit(index, value) {
+            const students = value.split(",").map(s => s.trim().padStart(2, "0")).filter(s => s && s !== "00");
+            if (workData.specialWorks[index]) {
+                workData.specialWorks[index].students = students;
+            }
             
-            // Refresh all displays
+            rebuildStudentExtraTasks(); 
+
+            displaySpecialWorks();
+            createStudentsGrid();
+            if (selectedStudents.length > 0) {
+                showWorkItemsForStudent();
+            }
+            saveData();
+        }
+
+        function removeSpecialWorkEdit(index) {
+            workData.specialWorks.splice(index, 1);
+            
+            rebuildStudentExtraTasks();
+            
             updateSpecialWorksEditDisplay();
             displaySpecialWorks();
             createStudentsGrid();
+            if (selectedStudents.length > 0) {
+                showWorkItemsForStudent();
+            }
             saveData();
         }
-        // =====================================================================================
-        function addSpecialWorkEdit(){const input=document.getElementById("editSpecialWorkTitle");if(!input.value.trim())return;workData.specialWorks.push({title:input.value.trim(),students:[]});input.value="";updateSpecialWorksEditDisplay();displaySpecialWorks();saveData()}
+
+        function addSpecialWorkEdit() {
+            const input = document.getElementById("editSpecialWorkTitle");
+            const title = input.value.trim();
+            if (!title) return;
+            
+            if (workData.specialWorks.some(sw => sw.title === title)) {
+                alert("此額外任務標題已存在！");
+                return;
+            }
+
+            workData.specialWorks.push({ title: title, students: [] });
+            
+            input.value = "";
+            updateSpecialWorksEditDisplay();
+            displaySpecialWorks();
+            saveData();
+        }
+        
         function updateWorkItemsEditDisplay(){const container=document.getElementById("workItemsEditList");container.innerHTML="";workData.workItems.forEach((item,index)=>{const div=document.createElement("div");div.className="flex justify-between items-center p-2 bg-blue-50 rounded-lg";div.innerHTML=`<span class="text-sm">${item.name}</span><button onclick="removeWorkItemEdit(${index})" class="text-red-600 hover:text-red-800">❌</button>`;container.appendChild(div)})}
         function removeWorkItemEdit(index){if(workData.workItems.length<=1){alert("至少需要保留一個工作項目！");return}workData.workItems.splice(index,1);Object.values(workData.students).forEach(student=>{student.completedItems=student.completedItems.filter(itemIndex=>itemIndex!==index).map(itemIndex=>(itemIndex>index?itemIndex-1:itemIndex))});updateWorkItemsDisplay();updateWorkItemsEditDisplay();createStudentsGrid();if(selectedStudents.length>0)showWorkItemsForStudent();if(fiveMinWarningShown)updateFiveMinIncompleteDisplay();saveData()}
         function addWorkItemEdit(){const input=document.getElementById("editWorkItem");if(!input.value.trim())return;workData.workItems.push({name:input.value.trim()});input.value="";updateWorkItemsDisplay();updateWorkItemsEditDisplay();if(selectedStudents.length>0)showWorkItemsForStudent();if(fiveMinWarningShown)updateFiveMinIncompleteDisplay();saveData()}
         function showModalWithIncompleteStudents(titleText,studentList){const modal=document.getElementById("infoModal"),title=document.getElementById("modalTitle"),content=document.getElementById("modalContent");title.textContent=titleText;content.innerHTML="";if(studentList.length===0)content.innerHTML='<div class="text-center text-green-600 font-medium py-4">🎉 全部學生都已完成！</div>';else{const grid=document.createElement("div");grid.className="grid grid-cols-8 gap-3 justify-center max-w-lg mx-auto";studentList.sort().forEach(studentId=>{grid.innerHTML+=`<div class="w-12 h-12 bg-red-100 border border-red-300 rounded-full flex items-center justify-center text-lg font-bold text-red-700">${studentId}</div>`});content.appendChild(grid);content.innerHTML+=`<div class="mt-4 text-center text-gray-600">共 ${studentList.length} 位學生尚未完成</div>`}modal.style.display="block"}function showIncompleteStudents(itemName,incompleteStudents){showModalWithIncompleteStudents(`📋 ${itemName} - 未完成學生`,incompleteStudents)}function closeModal(){document.getElementById("infoModal").style.display="none"}
-        // ==================== NEW: Import/Export Functions ====================
+        
         function exportConfigurations() {
             if (savedConfigurations.length === 0) {
                 alert('⚠️ 沒有可匯出的設定！');
@@ -609,17 +774,12 @@
         function importConfigurations() {
             const fileInput = document.getElementById('importFile');
             const file = fileInput.files[0];
-            if (!file) {
-                return;
-            }
+            if (!file) return;
             const reader = new FileReader();
             reader.onload = function(event) {
                 try {
                     const imported = JSON.parse(event.target.result);
-                    if (!Array.isArray(imported)) {
-                        throw new Error('格式錯誤，檔案必須包含設定陣列。');
-                    }
-                    // Simple merge: add new ones, ignore existing names
+                    if (!Array.isArray(imported)) throw new Error('格式錯誤，檔案必須包含設定陣列。');
                     const existingNames = new Set(savedConfigurations.map(c => c.name));
                     let addedCount = 0;
                     imported.forEach(config => {
@@ -634,7 +794,6 @@
                 } catch (error) {
                     alert(`❌ 匯入失敗：${error.message}`);
                 } finally {
-                    // Reset file input to allow re-uploading the same file
                     fileInput.value = '';
                 }
             };
@@ -644,7 +803,56 @@
             };
             reader.readAsText(file);
         }
-        // ======================================================================
+
+        function importCorrectionList(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const importedData = JSON.parse(e.target.result);
+                    if (!importedData.homeworks || !Array.isArray(importedData.homeworks)) {
+                        throw new Error("JSON 檔案格式不符，找不到 'homeworks' 項目。");
+                    }
+
+                    let addedCount = 0;
+                    importedData.homeworks.forEach(hw => {
+                        if (hw.title && hw.students && Array.isArray(hw.students)) {
+                            const studentsToCorrect = hw.students
+                                .filter(s => s.needsCorrection && s.id)
+                                .map(s => String(s.id).padStart(2, '0'));
+
+                            if (studentsToCorrect.length > 0) {
+                                const isDuplicate = setupSpecialWorks.some(sw => sw.title === hw.title);
+                                if (!isDuplicate) {
+                                    setupSpecialWorks.push({
+                                        title: hw.title,
+                                        students: studentsToCorrect
+                                    });
+                                    addedCount++;
+                                }
+                            }
+                        }
+                    });
+
+                    if (addedCount > 0) {
+                        updateSpecialWorksSetupDisplay();
+                        saveSetupData();
+                        alert(`✅ 成功匯入 ${addedCount} 個訂正任務！`);
+                    } else {
+                        alert("ℹ️ 檔案中沒有需要訂正的項目，或任務標題已存在。");
+                    }
+
+                } catch (error) {
+                    alert(`❌ 匯入失敗：${error.message}`);
+                } finally {
+                    event.target.value = '';
+                }
+            };
+            reader.readAsText(file);
+        }
+
         window.onclick=function(event){const modal=document.getElementById("infoModal");if(event.target===modal)modal.style.display="none"};
         window.onload=function(){loadSavedData();const saved=localStorage.getItem("savedConfigurations");if(saved){savedConfigurations=JSON.parse(saved);updateSavedConfigurationsDisplay()}};
     </script>
