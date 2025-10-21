@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>📚 雲教室工作流程管理系統 V5.2.0</title>
+    <title>📚 雲教室工作流程管理系統 V5.3.0</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @keyframes float {
@@ -71,7 +71,9 @@
         }
     </style>
 </head>
-<body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen">
+<!-- ==================== [版面] 修改處: <body> 標籤 ==================== -->
+<!-- 說明：移除了原本的漸層背景 class，並用 style 屬性直接加入新的背景圖片 -->
+<body class="min-h-screen" style="background-image: url('https://class.kh.edu.tw/sites/30033/upload_file/4/cloud.jpg'); background-size: cover; background-position: center; background-attachment: fixed;">
     <div id="page1" class="container mx-auto px-4 py-8">
         <div class="text-center mb-8">
             <h1 class="text-4xl font-bold text-gray-800 mb-2">📚 雲教室管理系統</h1>
@@ -456,7 +458,6 @@
                 container.appendChild(div);
             });
 
-            // ==================== [BUG修復] 修正此處，避免破壞事件監聽 ====================
             if (workData.workItems.length > 0 && student.extraTasks.length > 0) {
                 const separator = document.createElement('div');
                 separator.className = 'col-span-2 lg:col-span-3 border-t my-2';
@@ -525,7 +526,6 @@
             });
         }
         
-        // ==================== [功能] 修改處: 加入摺疊功能 ====================
         function displaySpecialWorks() {
             const container = document.getElementById('specialWorksDisplay');
             container.innerHTML = '';
@@ -548,7 +548,7 @@
                 const toggleIcon = document.createElement('span');
                 toggleIcon.id = `special-work-toggle-icon-${index}`;
                 toggleIcon.className = 'text-purple-600 transition-transform duration-300 text-xl font-bold w-6 text-center';
-                toggleIcon.textContent = '▶'; // 預設摺疊
+                toggleIcon.textContent = '▶'; 
                 
                 titleContainer.appendChild(titleText);
                 titleContainer.appendChild(toggleIcon);
@@ -556,7 +556,7 @@
 
                 const studentsContainer = document.createElement('div');
                 studentsContainer.id = `special-work-students-${index}`;
-                studentsContainer.className = 'flex flex-wrap gap-2 mt-3 hidden'; // 預設隱藏
+                studentsContainer.className = 'flex flex-wrap gap-2 mt-3 hidden'; 
                 
                 if (work.students.length === 0) {
                     studentsContainer.innerHTML = '<p class="text-sm text-purple-600 text-center w-full py-2">尚未指派學生</p>';
@@ -573,7 +573,6 @@
             });
         }
 
-        // ==================== [功能] 新增處: 摺疊功能的邏輯 ====================
         function toggleSpecialWorkCollapse(index) {
             const studentsContainer = document.getElementById(`special-work-students-${index}`);
             const toggleIcon = document.getElementById(`special-work-toggle-icon-${index}`);
