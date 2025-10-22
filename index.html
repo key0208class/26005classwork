@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>📚 雲教室工作流程管理系統 V5.3.0</title>
+    <title>📚 雲教室工作流程管理系統 V5.3.2</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @keyframes float {
@@ -71,13 +71,11 @@
         }
     </style>
 </head>
-<!-- ==================== [版面] 修改處: <body> 標籤 ==================== -->
-<!-- 說明：移除了原本的漸層背景 class，並用 style 屬性直接加入新的背景圖片 -->
 <body class="min-h-screen" style="background-image: url('https://class.kh.edu.tw/sites/30033/upload_file/4/cloud.jpg'); background-size: cover; background-position: center; background-attachment: fixed;">
     <div id="page1" class="container mx-auto px-4 py-8">
         <div class="text-center mb-8">
             <h1 class="text-4xl font-bold text-gray-800 mb-2">📚 雲教室管理系統</h1>
-            <p class="text-gray-600">👨‍🏫 設定您的課堂工作流程</p>
+            <p class="text-gray-900">👨‍🏫 安排你的學生工作事項</p>
         </div>
         
         <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 max-w-screen-2xl mx-auto">
@@ -513,7 +511,9 @@
                 const completedCount = workData.classSize - incompleteStudents.length;
                 const div = document.createElement('div');
                 div.className = `flex justify-between items-center p-3 rounded-lg border cursor-pointer hover:shadow-md transition-all ${colors[index % colors.length]}`;
-                div.onclick = () => showIncompleteStudents(item.name, incompleteStudents);
+                
+                div.onclick = () => showIncompleteStudents(item.name, incompleteStudents, index);
+                
                 const nameSpan = document.createElement('span');
                 nameSpan.textContent = item.name;
                 nameSpan.className = 'font-medium text-2xl';
@@ -751,7 +751,103 @@
         function updateWorkItemsEditDisplay(){const container=document.getElementById("workItemsEditList");container.innerHTML="";workData.workItems.forEach((item,index)=>{const div=document.createElement("div");div.className="flex justify-between items-center p-2 bg-blue-50 rounded-lg";div.innerHTML=`<span class="text-sm">${item.name}</span><button onclick="removeWorkItemEdit(${index})" class="text-red-600 hover:text-red-800">❌</button>`;container.appendChild(div)})}
         function removeWorkItemEdit(index){if(workData.workItems.length<=1){alert("至少需要保留一個工作項目！");return}workData.workItems.splice(index,1);Object.values(workData.students).forEach(student=>{student.completedItems=student.completedItems.filter(itemIndex=>itemIndex!==index).map(itemIndex=>(itemIndex>index?itemIndex-1:itemIndex))});updateWorkItemsDisplay();updateWorkItemsEditDisplay();createStudentsGrid();if(selectedStudents.length>0)showWorkItemsForStudent();if(fiveMinWarningShown)updateFiveMinIncompleteDisplay();saveData()}
         function addWorkItemEdit(){const input=document.getElementById("editWorkItem");if(!input.value.trim())return;workData.workItems.push({name:input.value.trim()});input.value="";updateWorkItemsDisplay();updateWorkItemsEditDisplay();if(selectedStudents.length>0)showWorkItemsForStudent();if(fiveMinWarningShown)updateFiveMinIncompleteDisplay();saveData()}
-        function showModalWithIncompleteStudents(titleText,studentList){const modal=document.getElementById("infoModal"),title=document.getElementById("modalTitle"),content=document.getElementById("modalContent");title.textContent=titleText;content.innerHTML="";if(studentList.length===0)content.innerHTML='<div class="text-center text-green-600 font-medium py-4">🎉 全部學生都已完成！</div>';else{const grid=document.createElement("div");grid.className="grid grid-cols-8 gap-3 justify-center max-w-lg mx-auto";studentList.sort().forEach(studentId=>{grid.innerHTML+=`<div class="w-12 h-12 bg-red-100 border border-red-300 rounded-full flex items-center justify-center text-lg font-bold text-red-700">${studentId}</div>`});content.appendChild(grid);content.innerHTML+=`<div class="mt-4 text-center text-gray-600">共 ${studentList.length} 位學生尚未完成</div>`}modal.style.display="block"}function showIncompleteStudents(itemName,incompleteStudents){showModalWithIncompleteStudents(`📋 ${itemName} - 未完成學生`,incompleteStudents)}function closeModal(){document.getElementById("infoModal").style.display="none"}
+        
+        /**
+         * [新增函數] 當在 Modal 中點擊學生號碼時觸發
+         * @param {number} itemIndex - 點擊的工作項目索引
+         * @param {string} studentId - 點擊的學生 ID
+         */
+        function completeTaskFromModal(itemIndex, studentId) {
+            const student = workData.students[studentId];
+            if (!student) return;
+            const indexInCompleted = student.completedItems.indexOf(itemIndex);
+            
+            // 僅在尚未完成時才加入
+            if (indexInCompleted === -1) {
+                student.completedItems.push(itemIndex);
+            }
+            
+            // 觸發所有相關的介面更新
+            updateWorkItemsDisplay(); // 更新 "工作流程項目" 的計數
+            createStudentsGrid(); // 更新學生圈圈的顏色
+            if (fiveMinWarningShown) updateFiveMinIncompleteDisplay(); // 更新倒數計時的未完成列表
+            saveData(); // 儲存
+            
+            // --- 即時更新 Modal 顯示 ---
+            const content = document.getElementById("modalContent");
+            // 找到該學生的 DOM 元素
+            const studentBall = content.querySelector(`#modal-student-${studentId}`);
+            if (studentBall) {
+                studentBall.remove(); // 移除已點選的學生
+            }
+            
+            const remainingStudents = content.querySelectorAll('.modal-student-ball');
+            const studentListLengthElement = content.querySelector('#modal-student-count');
+            
+            // 檢查是否都完成了
+            if (remainingStudents.length === 0) {
+                content.innerHTML = '<div class="text-center text-green-600 font-medium py-4">🎉 全部學生都已完成！</div>';
+            } else if (studentListLengthElement) {
+                // 更新計數
+                studentListLengthElement.textContent = `共 ${remainingStudents.length} 位學生尚未完成`;
+            }
+        }
+
+        /**
+         * [修改函數] 顯示未完成學生的 Modal
+         * @param {string} titleText - Modal 標題
+         * @param {Array<string>} studentList - 未完成學生的 ID 列表
+         * @param {number} itemIndex - 該工作項目的索引 (新增參數)
+         */
+        function showModalWithIncompleteStudents(titleText, studentList, itemIndex) {
+            const modal = document.getElementById("infoModal"),
+                title = document.getElementById("modalTitle"),
+                content = document.getElementById("modalContent");
+            
+            title.textContent = titleText;
+            content.innerHTML = ""; // 清空
+            
+            if (studentList.length === 0) {
+                content.innerHTML = '<div class="text-center text-green-600 font-medium py-4">🎉 全部學生都已完成！</div>';
+            } else {
+                const grid = document.createElement("div");
+                grid.className = "grid grid-cols-8 gap-3 justify-center max-w-lg mx-auto";
+                
+                studentList.sort().forEach(studentId => {
+                    // 改用 createElement 以便綁定 onclick 事件
+                    const ball = document.createElement("div");
+                    ball.id = `modal-student-${studentId}`; // 加上 ID 以便移除
+                    ball.className = "modal-student-ball w-12 h-12 bg-red-100 border border-red-300 rounded-full flex items-center justify-center text-lg font-bold text-red-700 cursor-pointer hover:bg-red-200 transition-all"; // 加上 cursor 和 hover 效果
+                    ball.textContent = studentId;
+                    ball.onclick = () => completeTaskFromModal(itemIndex, studentId); // 綁定新函數
+                    grid.appendChild(ball);
+                });
+                
+                content.appendChild(grid);
+                
+                // 加上計數
+                const countDiv = document.createElement("div");
+                countDiv.id = "modal-student-count"; // 加上 ID 以便更新
+                countDiv.className = "mt-4 text-center text-gray-600";
+                countDiv.textContent = `共 ${studentList.length} 位學生尚未完成`;
+                content.appendChild(countDiv);
+            }
+            modal.style.display = "block";
+        }
+
+        /**
+         * [修改函數] 顯示未完成學生的轉接函數
+         * @param {string} itemName - 工作項目名稱
+         * @param {Array<string>} incompleteStudents - 未完成學生列表
+         * @param {number} itemIndex - 工作項目索引 (新增參數)
+         */
+        function showIncompleteStudents(itemName, incompleteStudents, itemIndex) {
+            showModalWithIncompleteStudents(`📋 ${itemName} - 未完成學生`, incompleteStudents, itemIndex); // 傳入 itemIndex
+        }
+        
+        function closeModal() {
+            document.getElementById("infoModal").style.display = "none";
+        }
         
         function exportConfigurations() {
             if (savedConfigurations.length === 0) {
